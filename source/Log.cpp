@@ -14,17 +14,19 @@ std::shared_ptr<Log> Log::GetInstance()
     return _instance;
 }
 
-void Log::Write(const std::string &data)
+void Log::Write(const std::string &data, LogKind logKind)
 {
     std::shared_ptr<LogData> logData = std::make_shared<LogData>();
     logData->strTime = LocalTimeToString();
     logData->strLogData = data;
+    logData->uiKind = logKind;
     this->m_LogQueue.Enqueue(logData);
     SetEvent();
 }
 
 Log::Log()
 {
+    LogIndex = 1;
     std::thread *thread = new std::thread(&Log::LogThread, this);
     if(thread == nullptr)
     {
@@ -38,43 +40,25 @@ void Log::LogThread()
 {
     std::cout << "Create Thread success" << std::endl;
     int logSize = 0;
-    int index = 1;
-    struct tm *oldTime, *timeInfo;
-    oldTime = GetCurrentTime();
-    std::string logFileName;
-    std::stringstream ss;
-    ss << std::to_string(oldTime->tm_year);
-    ss << std::setw(2) << std::setfill('0') << std::to_string(oldTime->tm_mon);
-    ss << std::to_string(oldTime->tm_mday);
-    ss << "-";
-    ss << std::setw(3) << std::setfill('0') << std::to_string(index);
-    ss << ".log";
-    logFileName = ss.str();
-    ss.clear();
-    ss.str("");
+    
+    struct tm *timeInfo;
+    stTime = GetCurrentTime();
+    std::string logFileName = MakeLogFileName();
     while (1)
     {
         WaitEvent();
         timeInfo = GetCurrentTime();
         if( (logSize > LOG_SIZE) || 
-            (timeInfo->tm_mday != oldTime->tm_mday) ||
-            (timeInfo->tm_mon != oldTime->tm_mon) ||
-            (timeInfo->tm_year != oldTime->tm_year))
+            (timeInfo->tm_mday != stTime->tm_mday) ||
+            (timeInfo->tm_mon != stTime->tm_mon) ||
+            (timeInfo->tm_year != stTime->tm_year))
         {
-            *oldTime = *timeInfo;
-            if(index++ == 999) index = 0;
-            ss << std::to_string(oldTime->tm_year);
-            ss << std::setw(2) << std::setfill('0') << std::to_string(oldTime->tm_mon);
-            ss << std::to_string(oldTime->tm_mday);
-            ss << "-";
-            ss << std::setw(3) << std::setfill('0') << std::to_string(index);
-            ss << ".log";
-            logFileName = ss.str();
-            ss.clear();
-            ss.str("");
+            *stTime = *timeInfo;
+            if(LogIndex++ == 999) LogIndex = 0;
+            logFileName = MakeLogFileName();
         }
         std::shared_ptr<LogData> logData = this->m_LogQueue.Dequeue();
-        std::fstream fs(logFileName.c_str(), std::ios_base::app | std::ios_base::in | std::ios_base::out);
+        std::fstream fs(logFileName, std::fstream::app | std::fstream::in | std::fstream::out);
         if(!fs.fail())
         {
             fs << FormatLog(logData);
@@ -82,6 +66,7 @@ void Log::LogThread()
             logSize = fs.tellg();
             fs.close();
         }
+        std::cout << "Write log success" << std::endl;
     }
     
 }
@@ -89,7 +74,7 @@ void Log::LogThread()
 void Log::WaitEvent()
 {
     std::unique_lock<std::mutex> lock(this->condition_mutex);
-    std::cout << "Wait" << std::endl;
+    std::cout << "Wait add log" << std::endl;
     this->condition_var.wait(lock);
     
 
@@ -124,15 +109,61 @@ tm *Log::GetCurrentTime()
     return timeInfo;
 }
 
-std::string Log::FormatLog(const std::shared_ptr<LogData> data)
+std::string Log::FormatLog(const std::shared_ptr<LogData> &data)
 {
     std::stringstream ss;
-    ss << data->strTime;
-    ss << " " + data->strLogData;
+    std::string strKind;
+    switch (data->uiKind)
+    {
+    case LogKind::DEBUG:
+        strKind = "[DEBUG] ";
+        break;
+    case LogKind::INFO:
+        strKind = "[INFO] ";
+        break;
+    case LogKind::ERROR:
+        strKind = "[ERROR] ";
+        break;
+    default:
+        strKind = "[UNKNOW] ";
+        break;
+    }
+    ss << strKind;
+    ss << data->strTime << " ";
+    ss << data->strLogData;
     ss << "\r\n";
+    return ss.str();
+}
+
+std::string Log::MakeLogFileName()
+{
+    std::stringstream ss;
+    ss << std::to_string(stTime->tm_year);
+    ss << std::setw(2) << std::setfill('0') << std::to_string(stTime->tm_mon);
+    ss << std::to_string(stTime->tm_mday);
+    ss << "-";
+    ss << std::setw(3) << std::setfill('0') << std::to_string(LogIndex);
+    ss << ".log";
     return ss.str();
 }
 
 Log::~Log()
 {
+}
+
+void Log::Info(const std::string &data)
+{
+    Write(data, LogKind::INFO);
+}
+
+void Log::Debug(const std::string &data)
+{
+    #ifdef ENABLE_DEBUG
+    Write(data, LogKind::DEBUG);
+    #endif
+}
+
+void Log::Error(const std::string &data)
+{
+    Write(data, LogKind::ERROR);
 }
