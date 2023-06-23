@@ -8,6 +8,11 @@
 #include <string>
 #include <ctime>
 
+#define TRACE(__data)  (Log::GetInstance()->Debug(__data));
+#define INFO(__data)  (Log::GetInstance()->Info(__data));
+#define ERROR(__data)  (Log::GetInstance()->Error(__data));
+
+
 enum LogKind
 {
     DEBUG,
@@ -26,12 +31,13 @@ class Log
 {
 private:
     Log(/* args */);
-    static std::shared_ptr<Log> _instance;
+    static Log* _instance;
     Queue<std::shared_ptr<LogData>> m_LogQueue;
     std::mutex condition_mutex;
     std::condition_variable condition_var;
     struct tm *stTime;
     int LogIndex;
+    bool Running;
     void LogThread();
     void WaitEvent();
     void SetEvent();
@@ -43,7 +49,7 @@ private:
 public:
     Log(const Log&) = delete;
     Log operator=(const Log&) = delete;
-    static std::shared_ptr<Log> GetInstance();
+    static Log* GetInstance();
     void Info(const std::string &data);
     void Debug(const std::string &data);
     void Error(const std::string &data);

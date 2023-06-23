@@ -1,26 +1,26 @@
 #include <Log.h>
 
+
 int main(int argc, const char** argv) 
 {
-    std::shared_ptr<Log> Log = Log::GetInstance();
     int i = 0;
     std::string strTest;
-    while (1)
+    while (i< 25)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         strTest = "Test" + std::to_string(i++);
         std::cout << "Add log\n";
-        Log->Debug(strTest);
+        TRACE(strTest);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         strTest = "Test" + std::to_string(i++);
         std::cout << "Add log\n";
-        Log->Info(strTest);
+        INFO(strTest);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         strTest = "Test" + std::to_string(i++);
         std::cout << "Add log\n";
-        Log->Error(strTest);
+        ERROR(strTest);
     }
     
     return 0;

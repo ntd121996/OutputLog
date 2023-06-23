@@ -2,14 +2,14 @@
 #include <sstream>
 #include <iomanip>
 #include <fstream>
-std::shared_ptr<Log> Log::_instance = nullptr;
-std::shared_ptr<Log> Log::GetInstance()
+Log* Log::_instance = nullptr;
+Log* Log::GetInstance()
 {
     static std::mutex mutex;
     static std::lock_guard<std::mutex> lock(mutex);
     if(!_instance)
     {
-        _instance = std::shared_ptr<Log>(new Log());
+        _instance = new Log();
     }
     return _instance;
 }
@@ -27,6 +27,7 @@ void Log::Write(const std::string &data, LogKind logKind)
 Log::Log()
 {
     LogIndex = 1;
+    Running = true;
     std::thread *thread = new std::thread(&Log::LogThread, this);
     if(thread == nullptr)
     {
@@ -44,9 +45,13 @@ void Log::LogThread()
     struct tm *timeInfo;
     stTime = GetCurrentTime();
     std::string logFileName = MakeLogFileName();
-    while (1)
+    while (Running)
     {
         WaitEvent();
+        if(!Running) 
+        {
+            break;
+        }
         timeInfo = GetCurrentTime();
         if( (logSize > LOG_SIZE) || 
             (timeInfo->tm_mday != stTime->tm_mday) ||
@@ -68,6 +73,7 @@ void Log::LogThread()
         }
         std::cout << "Write log success" << std::endl;
     }
+    std::cout << "End thread" << std::endl;
     
 }
 
@@ -149,6 +155,8 @@ std::string Log::MakeLogFileName()
 
 Log::~Log()
 {
+    Running = false;
+    SetEvent();
 }
 
 void Log::Info(const std::string &data)
