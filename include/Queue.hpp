@@ -26,11 +26,11 @@ inline void Queue<T>::Enqueue(T data)
 template <typename T>
 inline T Queue<T>::Dequeue()
 {
-    T data;
     std::lock_guard<std::mutex> lock(mutex);
+    T data;
     if(!m_queue.empty())
     {
-        data = m_queue.front();
+        data = std::move(m_queue.front());
         m_queue.pop();
     }
     return data;
@@ -54,10 +54,7 @@ template <typename T>
 inline void Queue<T>::Clear()
 {
     std::lock_guard<std::mutex> lock(mutex);
-    while (!isEmpty())
-    {
-        m_queue.pop();
-    }
+    std::queue<T>().swap(m_queue);
 }
 template <typename T>
 Queue<T>::Queue(/* args */)
